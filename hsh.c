@@ -139,6 +139,7 @@ char *find_path(char **path, char **args, char dest[])
 	while (args[0][len])
 		len++;
 
+	_memset(dest, 0, 1000);
 	while (path[i])
 	{
 		dir = opendir(path[i]);
@@ -150,7 +151,6 @@ char *find_path(char **path, char **args, char dest[])
 			cmp = _strcmp(dp->d_name, args[0]);
 			if (cmp == 0)
 			{
-				_memset(dest, 0, 100);
 				_strcpy(dest, temp);
 				_strcat(dest, "/");
 				_strcat(dest, args[0]);
@@ -346,6 +346,7 @@ void get_path(char *envp[], char *path_buf[])
 	char *path = "PATH", path_copy[1000];
 	int i = 0;
 
+	_memset(path_copy, 0, 1000);
 	while (envp[i])
 	{
 		if (_strncmp(envp[i], path, 4) == 0)
@@ -388,7 +389,7 @@ void _and(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 
 	for (i = 0; sbuf[i]; i++)
 	{
-		_memset(dest, 0, 100);
+		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
 		if ((check_bltin(args, hist, his, envp, ldbuf) != 0))
@@ -414,7 +415,7 @@ void _or(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 
 	for (i = 0; sbuf[i]; i++)
 	{
-		_memset(dest, 0, 100);
+		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
 		if ((check_bltin(args, hist, his, envp, ldbuf) != 0))
@@ -512,13 +513,13 @@ void file_input(char *filename, char *envp[])
 		{
 			execute(args, args[0], envp);
 			_memset(args, 0, sizeof(args));
-			_memset(dest, 0, 100);
+			_memset(dest, 0, 1000);
 			continue;
 		}
 		find_path(path_buf, args, dest);
 		execute(args, dest, envp);
 		_memset(args, 0, sizeof(args));
-		_memset(dest, 0, 100);
+		_memset(dest, 0, 1000);
 	}
 	exit(0);
 }
@@ -537,13 +538,13 @@ void pipe_file(char rbuffer[], char *envp[])
 		{
 			execute(args, args[0], envp);
 			_memset(args, 0, sizeof(args));
-			_memset(dest, 0, 100);
+			_memset(dest, 0, 1000);
 			continue;
 		}
 		find_path(path_buf, args, dest);
 		execute(args, dest, envp);
 		_memset(args, 0, sizeof(args));
-		_memset(dest, 0, 100);
+		_memset(dest, 0, 1000);
 	}
 	exit(0);
 }
@@ -562,33 +563,34 @@ int main(int argc, char *argv[], char *envp[])
 		file_input(argv[1], envp);
 	while (1)
 	{
-	_memset(rbuffer, 0, 1024);
-	_memset(args, 0, sizeof(args));
-	_memset(dest, 0, 100);
-	if (isatty(STDIN_FILENO))
-		write(STDOUT_FILENO, "¯\\_(ツ)_/¯  ", 14);
-	if (((_read(rbuffer)) == NULL))
-		continue;
-	if (isatty(STDIN_FILENO) == 0)
-		pipe_file(rbuffer, envp);
-	_strcpy(history[hist++], rbuffer);
-	check_comment(rbuffer);
-	if ((check_semiandor(rbuffer, envp, hist, history, last_dir_buf) == 1))
-		continue;
-	test = _split(rbuffer, args);
-	if (test == NULL)
-		continue;
-	check_exit(args);
-	if ((check_bltin(args, history, hist, envp, last_dir_buf) != 0))
-		continue;
-	get_path(envp, path_buf);
-	if (args[0][0] == '/')
-	{
-		execute(args, args[0], envp);
-		continue;
-	}
-	find_path(path_buf, args, dest);
-	execute(args, dest, envp);
+		_memset(path_buf, 0, sizeof(path_buf));
+		_memset(rbuffer, 0, 1024);
+		_memset(args, 0, sizeof(args));
+		_memset(dest, 0, 1000);
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, "¯\\_(ツ)_/¯  ", 14);
+		if (((_read(rbuffer)) == NULL))
+			continue;
+		if (isatty(STDIN_FILENO) == 0)
+			pipe_file(rbuffer, envp);
+		_strcpy(history[hist++], rbuffer);
+		check_comment(rbuffer);
+		if ((check_semiandor(rbuffer, envp, hist, history, last_dir_buf) == 1))
+			continue;
+		test = _split(rbuffer, args);
+		if (test == NULL)
+			continue;
+		check_exit(args);
+		if ((check_bltin(args, history, hist, envp, last_dir_buf) != 0))
+			continue;
+		get_path(envp, path_buf);
+		if (args[0][0] == '/')
+		{
+			execute(args, args[0], envp);
+			continue;
+		}
+		find_path(path_buf, args, dest);
+		execute(args, dest, envp);
 	}
 	return (0);
 }
