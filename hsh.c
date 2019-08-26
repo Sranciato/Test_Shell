@@ -1,10 +1,83 @@
 #include "shell.h"
+int _atoi(char *s)
+{
+	int loop, digitCount = 0, neg = 1, start = 0, multiple = 1;
+
+	int temp, number = 0;
+
+	for (loop = 0; s[loop] != '\0'; loop++)
+	{
+		if (s[loop] == '-')
+			neg *= -1;
+		if (s[loop] >= 48 && s[loop] <= 57)
+		{
+			digitCount++;
+			if (digitCount > 1)
+				multiple *= 10;
+			if (!(s[loop + 1] >= 48 && s[loop + 1] <= 57))
+				break;
+		}
+	}
+	for (start = (loop + 1) - digitCount; start < loop + 1; start++)
+	{
+		temp = (s[start] - '0') * multiple;
+		number += temp;
+		multiple /= 10;
+	}
+	number *= neg;
+	return (number);
+}
+int _itoa(int n, char buf[])
+{
+        int i = 0, temp, start = 0, len;
+        char buffer[1000];
+
+        if (n == 0)
+        {
+                buf[0] = '0';
+                return (1);
+        }
+
+        if (n < 0)
+        {
+                buffer[i] = '-';
+                i++;
+                n = -n;
+        }
+
+        while (n)
+        {
+                temp = n % 10;
+
+                if (temp > 9)
+                {
+                        buffer[i] = (temp - 10) + 'A';
+                        i++;
+                }
+                else if (temp < 10)
+                {
+                        buffer[i] = temp + '0';
+                        i++;
+                }
+                n = n / 10;
+        }
+        i--;
+	len = i;
+        while (i >= 0)
+        {
+                buf[start] = buffer[i];
+                start++;
+                i--;
+        }
+
+        return(len);
+}
 /**
  * attempt to execute
  */
 int execute(char **args, char *path, char *envp[])
 {
-	pid_t pid, wpid;
+	pid_t pid;
 	int status = 0;
 
 	pid = fork();
@@ -33,9 +106,10 @@ int execute(char **args, char *path, char *envp[])
 	else
 	{
 		do {
-			wpid = waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status) && wpid > 0);
+			waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
 	}
+
 	return (status);
 }
 /**
@@ -138,16 +212,13 @@ char *get_home_path(char *envp[])
  */
 char *find_path(char *path_buf[], char **args, char dest[])
 {
-	int i = 1, len = 0;
+	int i = 0;
 	DIR *dir = NULL;
 	struct dirent *dp;
 	int cmp;
 	char *temp = NULL;
 
-	while (args[0][len])
-		len++;
-
-	while (path_buf[i])
+	for (i = 1; path_buf[i]; i++)
 	{
 		dir = opendir(path_buf[i]);
 		if (dir == NULL)
@@ -167,7 +238,6 @@ char *find_path(char *path_buf[], char **args, char dest[])
 			}
 		}
 		closedir(dir);
-		i++;
 	}
 	return (NULL);
 }
@@ -225,7 +295,7 @@ void check_exit(char *args[])
 	{
 		if (args[1])
 		{
-			exit_code = atoi(args[1]);
+			exit_code = _atoi(args[1]);
 			exit(exit_code);
 		}
 		else
@@ -276,10 +346,33 @@ void check_comment(char rbuffer[])
 }
 void print_history(char history[][100], int hist)
 {
-	int i = 0;
+	int i = 1, len;
+	char buffer[1000];
 
 	while (i < hist)
 	{
+		_memset(buffer, 0, 1000);
+		if (i < 10)
+		{
+			len = _itoa(i, buffer);
+			if (len < 4)
+			{
+				while (len++ < 4)
+					write(STDOUT_FILENO, " ", 1);
+			}
+			write(STDOUT_FILENO, buffer, 4);
+		}
+		else if (i > 9)
+		{
+			len = _itoa(i, buffer);
+			if (len < 4)
+			{
+				while (len++ < 4)
+					write(STDOUT_FILENO, " ", 1);
+			}
+			write(STDOUT_FILENO, buffer, 4);
+		}
+		write(STDOUT_FILENO, "  ", 2);
 		write(STDOUT_FILENO, history[i], sizeof(history[i]));
 		i++;
 	}
@@ -353,7 +446,6 @@ char *get_path(char *envp[])
 {
 	char *path = "PATH";
 	int i = 0;
-
 
 	while (envp[i])
 	{
@@ -449,7 +541,7 @@ void _or(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 			break;
 	}
 }
-char **_split_semiand(char *s, char *buf[])
+char **_split_semiandor(char *s, char *buf[])
 {
 	char delim[] = ";&|";
 	char *token;
@@ -481,7 +573,7 @@ int check_semiandor(char rb[], char *env[], int h, char hi[100][100], char ldf[]
 		{
 			if (i == 0 || rb[i + 1] == '\0')
 				return (1);
-			_split_semiand(rb, semi_buf);
+			_split_semiandor(rb, semi_buf);
 			_semi(semi_buf, env, h, hi, ldf);
 			return (1);
 		}
@@ -489,7 +581,7 @@ int check_semiandor(char rb[], char *env[], int h, char hi[100][100], char ldf[]
 		{
 			if (i == 0 || rb[i + 1] == '\0')
 				return (1);
-			_split_semiand(rb, semi_buf);
+			_split_semiandor(rb, semi_buf);
 			_and(semi_buf, env, h, hi, ldf);
 			return (1);
 		}
@@ -497,7 +589,7 @@ int check_semiandor(char rb[], char *env[], int h, char hi[100][100], char ldf[]
 		{
 			if (i == 0 || rb[i + 1] == '\0')
 				return (1);
-			_split_semiand(rb, semi_buf);
+			_split_semiandor(rb, semi_buf);
 			_or(semi_buf, env, h, hi, ldf);
 			return (1);
 		}
@@ -586,7 +678,7 @@ int main(int argc, char *argv[], char *envp[])
 	_memset(args, 0, sizeof(args));
 	_memset(dest, 0, 1000);
 	if (isatty(STDIN_FILENO))
-		write(STDOUT_FILENO, "¯\\_(ツ)_/¯  ", 14);
+		write(STDOUT_FILENO, "$ ", 2);
 	if (((_read(rbuffer)) == NULL))
 		continue;
 	if (isatty(STDIN_FILENO) == 0)
@@ -609,3 +701,4 @@ int main(int argc, char *argv[], char *envp[])
 	}
 	return (0);
 }
+
