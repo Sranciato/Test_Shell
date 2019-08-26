@@ -1,0 +1,81 @@
+.TH "HSH" 1 "26 August 2019"
+.SH NAME
+hsh - Simple SHell
+.SH SYNOPSIS
+.BR "hsh "[file]
+.SH DESCRIPTION
+.PP
+hsh is an sh-compatible language interpreter that executes commands read from a file or from standard input.
+
+hsh is intended to be an exact copy of Simple SHell with improvements to memory management.
+.SH ARGUMENTS
+.PP
+The first argument is the name of the file containing shell commands. hsh reads commands from the file and exits. The return status of hsh is the exit status of the ast command executed in the shell. The exit status is 0 of no commands are executed. If no script can be found in the current directory then it will search through the PATH.
+.SH COMMANDS
+.PP
+A line is read and if the first word of the line is not a reserved word, then the shell has recognized a simple command. 
+
+Otherwise a complex command has been recognized.
+.SH Simple Commands
+.PP
+A simple command is one that is found in the environmental list.
+.SH BUILTIN COMMANDS
+.pp
+cd              changes the current working directory to a given directory as an argument. If "cd -" is executed then go to previous directory. If cd is executed alone then go to home directory.
+
+.PP
+env             prints the environment from the environmental list.
+
+.PP
+history         prints a numbered list of history from the standard input.
+
+.PP
+exit            exits the shell with an exit status of defined behavior.
+.SH COMPLEX COMMANDS
+.PP
+Complex commands are a combination of control operators and simple commands.
+
+	example: "ls ; ls"
+.SH EXIT STATUS
+.PP
+Errors that are detected by the shell, such as a syntax error, will cause the shell to exit with a non-zero exit status. Otherwise the shell will return the exit status of the last command executed, or if the exit builtin is used with a numeric argument, it will return the argument.
+.SH ENVIRONMENT
+.PP
+HOME       Set automatically by login(1) from the user's login directory in the password file (passwd(4)).  This environment variable also functions as the defaul 
+           argument for the cd builtin.
+.PP
+PATH       The default search path for executables.
+.PP
+CDPATH     The search path used with the cd builtin.
+.PP
+MAIL       The name of a mail file, that will be checked for the arrival of new mail.  Overridden by MAILPATH.
+.PP
+MAILCHECK  The frequency in seconds that the shell checks for the arrival of mail in the files specified by the MAILPATH or the MAIL file.  If set to 0, the check
+           will occur at each prompt.
+.PP
+MAILPATH   A colon “:” separated list of file names, for the shell to check for incoming mail.  This environment setting overrides the MAIL setting.  There is a
+           maximum of 10 mailboxes that can be monitored at once.
+.PP
+PS1        The primary prompt string, which defaults to “$ ”, unless you are the superuser, in which case it defaults to “# ”.
+.PP
+PS2        The secondary prompt string, which defaults to “> ”.
+.PP
+PS4        Output before each line when execution trace (set -x) is enabled, defaults to “+ ”.
+.PP
+IFS        Input Field Separators.  This is normally set to ⟨space⟩, ⟨tab⟩, and ⟨newline⟩.  See the White Space Splitting section for more details.
+.PP
+TERM       The default terminal setting for the shell.  This is inherited by children of the shell, and is used in the history editing modes.
+.PP
+HISTSIZE   The number of lines in the history buffer for the shell.
+.PP
+PWD        The logical value of the current working directory.  This is set by the cd command.
+.PP
+OLDPWD     The previous logical value of the current working directory.  This is set by the cd command.
+.PP
+PPID       The process ID of the parent process of the shell.
+.SH BUGS
+.PP
+No bugs to report.
+.SH AUTHORS
+.PP
+Danny Holman, Stephen Ranciato
