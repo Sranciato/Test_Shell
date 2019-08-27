@@ -123,7 +123,6 @@ void _error(char **args, char buffer[], char *argv[])
 }
 void error_builtin(char **args, char buffer[])
 {
-//sh: 1: cd: can't cd to sjdns
 	write(STDOUT_FILENO, "hsh: ", 5);
 	write(STDOUT_FILENO, buffer, 4);
 	write(STDOUT_FILENO, ": ", 2);
@@ -523,6 +522,8 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[], int h
 	char *path_buf[1000];
 	char buffer[1000], cwd[1000], temp[1000], *pwd_split[1000];
 
+	_memset(buffer, 0, 1000);
+        _itoa(h, buffer);
 	_memset(pwd, 0, 1000);
 	_strcpy(pwd, "PWD=");
 	if (args[1])
@@ -815,49 +816,55 @@ void pipe_file(char rbuffer[], char *envp[], char *argv[])
 	}
 	exit(0);
 }
+void main_loop(char *envp[], char *path_buf[], char history[][100], int hist, char *argv[])
+{
+	char rbuf[1024], dest[1000], path_copy[1000], pwdb[1000], opwdb[1000];
+	char **test, *path, *args[1000], ldbuf[1000];
+
+	_memset(ldbuf, 0, 1000);
+	getcwd(ldbuf, 1000);
+	while (1)
+	{
+		_memset(rbuf, 0, 1024);
+		_memset(args, 0, sizeof(args));
+		_memset(dest, 0, 1000);
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, "$ ", 2);
+		if (((_read(rbuf)) == NULL))
+			continue;
+		if (isatty(STDIN_FILENO) == 0)
+			pipe_file(rbuf, envp, argv);
+		_strcpy(history[hist++], rbuf);
+		check_comment(rbuf);
+		if ((check_semiandor(rbuf, envp, hist, history, ldbuf) == 1))
+			continue;
+		test = _split(rbuf, args);
+		if (test == NULL)
+			continue;
+		check_exit(args, hist);
+		if ((check_bltin(args, history, hist, envp, ldbuf, pwdb, opwdb) != 0))
+			continue;
+		path = get_path(envp);
+		_strcpy(path_copy, path);
+		_split(path_copy, path_buf);
+		find_path(path_buf, args, dest);
+		execute(args, dest, envp, (hist - 1), NULL);
+	}
+}
 /**
  * main function
  */
 int main(int argc, char *argv[], char *envp[])
 {
-	char *args[1000], *path_buf[1000], history[100][100], **test, *path;
-	char rbuf[1024], dest[1000], ldbuf[1000], path_copy[1000], pwdb[1000], opwdb[1000];
+	char *path_buf[1000], history[100][100];
 	int hist = 0;
 
-	_memset(ldbuf, 0, 1000);
-	getcwd(ldbuf, 1000);
 	_memset(path_buf, 0, sizeof(path_buf));
 	_memset(history, 0, sizeof(history));
 	signal(SIGINT, sigint_handler);
 	if (argc == 2)
 		file_input(argv[1], envp);
-	while (1)
-	{
-	_memset(rbuf, 0, 1024);
-	_memset(args, 0, sizeof(args));
-	_memset(dest, 0, 1000);
-	if (isatty(STDIN_FILENO))
-		write(STDOUT_FILENO, "$ ", 2);
-	if (((_read(rbuf)) == NULL))
-		continue;
-	if (isatty(STDIN_FILENO) == 0)
-		pipe_file(rbuf, envp, argv);
-	_strcpy(history[hist++], rbuf);
-	check_comment(rbuf);
-	if ((check_semiandor(rbuf, envp, hist, history, ldbuf) == 1))
-		continue;
-	test = _split(rbuf, args);
-	if (test == NULL)
-		continue;
-	check_exit(args, hist);
-	if ((check_bltin(args, history, hist, envp, ldbuf, pwdb, opwdb) != 0))
-		continue;
-	path = get_path(envp);
-	_strcpy(path_copy, path);
-	_split(path_copy, path_buf);
-	find_path(path_buf, args, dest);
-	execute(args, dest, envp, (hist - 1), NULL);
-	}
+	main_loop(envp, path_buf, history, hist, argv);
+
 	return (0);
 }
-
