@@ -465,8 +465,10 @@ int find_pwd(char *envp[])
 	return (0);
 }
 */
-void cd_helper(char cwd[], char pwd[], char *envp[], int i)
+void cd_helper(char cwd[], char pwd[], char *envp[])
 {
+	int i = 0;
+
 	getcwd(cwd, 1000);
 	_strcat(pwd, cwd);
 	while (envp[i])
@@ -476,11 +478,28 @@ void cd_helper(char cwd[], char pwd[], char *envp[], int i)
 		i++;
 	}
 }
+void cd_no_arg(char **envp, char *ldbuf, char **path_buf, char *pwd, char opwd[])
+{
+	char *home_path, temp[1000], cwd[1000], home_copy[1000];
+
+	_strcpy(temp, ldbuf);
+	home_path = get_home_path(envp);
+	_strcpy(home_copy, home_path);
+	_split(home_copy, path_buf);
+	if (chdir(path_buf[1]) != 0)
+		perror("hsh");
+	else
+	{
+		getcwd(ldbuf, 1000);
+		cd_helper(cwd, pwd, envp);
+		change_old_pwd(envp, temp, opwd);
+	}
+
+}
 void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
 {
 	char *home_path, home_copy[1000], *path_buf[1000];
 	char buffer[1000], cwd[1000], temp[1000], *pwd_split[1000];
-	int i = 0;
 
 	_memset(pwd, 0, 1000);
 	_strcpy(pwd, "PWD=");
@@ -496,7 +515,7 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
 			else
 			{
 				getcwd(ldbuf, 1000);
-				cd_helper(cwd, pwd, envp, i);
+				cd_helper(cwd, pwd, envp);
 				change_old_pwd(envp, temp, opwd);
 
 				write(STDOUT_FILENO, ldbuf, _strlen(ldbuf));
@@ -511,26 +530,13 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
 			else
 			{
 				getcwd(ldbuf, 1000);
-				cd_helper(cwd, pwd, envp, i);
+				cd_helper(cwd, pwd, envp);
 				change_old_pwd(envp, temp, opwd);
 			}
 		}
 	}
 	else
-	{
-		_strcpy(temp, ldbuf);
-		home_path = get_home_path(envp);
-		_strcpy(home_copy, home_path);
-		_split(home_copy, path_buf);
-		if (chdir(path_buf[1]) != 0)
-			perror("hsh");
-		else
-		{
-			getcwd(ldbuf, 1000);
-			cd_helper(cwd, pwd, envp, i);
-			change_old_pwd(envp, temp, opwd);
-		}
-	}
+		cd_no_arg(envp, ldbuf, path_buf, pwd, opwd);
 }
 void env(char *envp[])
 {
