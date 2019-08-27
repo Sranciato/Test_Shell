@@ -121,6 +121,16 @@ void _error(char **args, char buffer[], char *argv[])
 	write(STDOUT_FILENO, "\n", 1);
 
 }
+void error_builtin(char **args, char buffer[])
+{
+//sh: 1: cd: can't cd to sjdns
+	write(STDOUT_FILENO, "hsh: ", 5);
+	write(STDOUT_FILENO, buffer, 4);
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, "cd: can't cd to ", 16);
+	write(STDOUT_FILENO, args[1], sizeof(args[1]));
+	write(STDOUT_FILENO, "\n", 1);
+}
 /**
  * attempt to execute
  */
@@ -486,7 +496,7 @@ void cd_home(char *envp[], char opwd[], char pwd[], char ldbuf[], char *pb[])
 		change_old_pwd(envp, temp, opwd);
 	}
 }
-void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
+void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[], int h)
 {
 	char *path_buf[1000];
 	char buffer[1000], cwd[1000], temp[1000], *pwd_split[1000];
@@ -514,9 +524,10 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
 		}
 		else
 		{
+			_itoa(h, buffer);
 			_strcpy(temp, ldbuf);
 			if (chdir(args[1]) != 0)
-				_error(args, buffer, NULL);
+				error_builtin(args, buffer);
 			else
 			{
 				getcwd(ldbuf, 1000);
@@ -550,7 +561,7 @@ int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[], c
 	}
 	if (_strcmp(ar[0], "cd") == 0)
 	{
-		cd(ar, ld_buf, en, pwd, opwd);
+		cd(ar, ld_buf, en, pwd, opwd, h);
 		return (1);
 	}
 	if (_strcmp(ar[0], "env") == 0)
