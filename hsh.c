@@ -469,15 +469,15 @@ void cd_helper(char cwd[], char pwd[], char *envp[])
 		i++;
 	}
 }
-void cd_home(char *envp[], char opwd[], char pwd[], char ldbuf[], char *path_buf[])
+void cd_home(char *envp[], char opwd[], char pwd[], char ldbuf[], char *pb[])
 {
 	char cwd[1000], temp[1000], *home_path, home_copy[1000];
 
 	_strcpy(temp, ldbuf);
 	home_path = get_home_path(envp);
 	_strcpy(home_copy, home_path);
-	_split(home_copy, path_buf);
-	if (chdir(path_buf[1]) != 0)
+	_split(home_copy, pb);
+	if (chdir(pb[1]) != 0)
 		perror("hsh");
 	else
 	{
