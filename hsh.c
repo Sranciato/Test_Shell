@@ -1,4 +1,38 @@
 #include "shell.h"
+char *_memcpy(char *dest, char *src, unsigned int n)
+{
+	unsigned int loop = 0;
+
+	while (loop < n)
+	{
+		dest[loop] = src[loop];
+		loop++;
+	}
+	return (dest);
+}
+/**
+ * set memory
+ */
+void *_memset(void *s, char c, unsigned int len)
+{
+	char *temp = s;
+
+	while (len > 0)
+	{
+		*temp = c;
+		temp++;
+		len--;
+	}
+	return (temp);
+}
+int _strlen(char *s)
+{
+        int i;
+
+        for (i = 0; s[i]; i++)
+                ;
+        return (i);
+}
 int _atoi(char *s)
 {
 	int loop, digitCount = 0, neg = 1, start = 0, multiple = 1;
@@ -37,14 +71,12 @@ int _itoa(int n, char buf[])
                 buf[0] = '0';
                 return (1);
         }
-
         if (n < 0)
         {
                 buffer[i] = '-';
                 i++;
                 n = -n;
         }
-
         while (n)
         {
                 temp = n % 10;
@@ -69,17 +101,37 @@ int _itoa(int n, char buf[])
                 start++;
                 i--;
         }
-
         return(len);
+}
+void _error(char **args, char buffer[], char *argv[])
+{
+	if (argv == NULL)
+		write(STDOUT_FILENO, "hsh: ", 5);
+	else
+	{
+		write(STDOUT_FILENO, argv[0], _strlen(argv[0]));
+		write(STDOUT_FILENO, ": ", 2);
+	}
+
+	write(STDOUT_FILENO, buffer, 4);
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, args[0], sizeof(args[0]));
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, "not found", 9);
+	write(STDOUT_FILENO, "\n", 1);
+
 }
 /**
  * attempt to execute
  */
-int execute(char **args, char *path, char *envp[])
+int execute(char **args, char *path, char *envp[], int hist, char *argv[])
 {
 	pid_t pid;
 	int status = 0;
+	char buffer[1000];
 
+	_memset(buffer, 0, 1000);
+	_itoa(hist, buffer);
 	pid = fork();
 
 	if (pid == 0)
@@ -88,14 +140,14 @@ int execute(char **args, char *path, char *envp[])
 		{
 			if (execve(args[0], args, envp) == -1)
 			{
-				perror("exe");
-				_exit(0);
+				_error(args, buffer, argv);
+				_exit(errno);
 			}
 		}
 		if (execve(path, args, envp) == -1)
 		{
-			perror("exe");
-			_exit(0);
+			_error(args, buffer, argv);
+			_exit(errno);
 		}
 	}
 	else if (pid < 0)
@@ -112,21 +164,7 @@ int execute(char **args, char *path, char *envp[])
 
 	return (status);
 }
-/**
- * set memory
- */
-void *_memset(void *s, char c, unsigned int len)
-{
-	char *temp = s;
 
-	while (len > 0)
-	{
-		*temp = c;
-		temp++;
-		len--;
-	}
-	return (temp);
-}
 /**
  * copy string
  */
@@ -378,23 +416,85 @@ void print_history(char history[][100], int hist)
 	}
 
 }
+char *get_old_pwd(char *envp[], char ldbuf[])
+{
+        char *path = "OLDPWD", buffer[1000];
+        int i = 0;
 
-void cd(char *args[], char last_dir_buf[], char *envp[])
+        while (envp[i])
+        {
+                if (_strncmp(envp[i], path, 6) == 0)
+		{
+			_strcpy(buffer, ldbuf);
+			_memset(ldbuf, 0, 1000);
+			_strcpy(ldbuf, "OLDPWD=");
+			_strcat(ldbuf, buffer);
+			envp[i] = ldbuf;
+			printf("%s\n", envp[i]);
+		}
+		i++;
+        }
+
+        return (NULL);
+}
+/*
+int find_pwd(char *envp[])
+{
+	int i = 0;
+
+	while (envp[i])
+	{
+		if (_strncmp(envp[i], "PWD", 3))
+			return (i);
+	}
+	return (0);
+}
+*/
+void cd_helper(char cwd[], char pwd_buf[], char *envp[], int i)
+{
+	getcwd(cwd, 1000);
+	_strcat(pwd_buf, cwd);
+	while (envp[i])
+	{
+		if (_strncmp(envp[i], "PWD", 3) == 0)
+			envp[i] = pwd_buf;
+		i++;
+	}
+}
+void cd(char *args[], char ldbuf[], char *envp[], char pwd_buf[])
 {
 	char *home_path, home_copy[1000], *path_buf[1000];
+	char buffer[1000], cwd[1000];
+	int i = 0;
 
+	_memset(pwd_buf, 0, 1000);
+	_strcpy(pwd_buf, "PWD=");
 	if (args[1])
 	{
 		if (_strcmp(args[1], "-") == 0)
 		{
-			if (chdir(last_dir_buf) != 0)
+			getcwd(ldbuf, 1000);
+			if (chdir(ldbuf) != 0)
 				perror("hsh");
+			else
+			{
+				cd_helper(cwd, pwd_buf, envp, i);
+				get_old_pwd(envp, ldbuf);
+
+				write(STDOUT_FILENO, ldbuf, _strlen(ldbuf));
+				write(STDOUT_FILENO, "\n", 1);
+			}
 		}
 		else
 		{
-			getcwd(last_dir_buf, 1000);
+			getcwd(ldbuf, 1000);
 			if (chdir(args[1]) != 0)
-				perror("hsh");
+				_error(args, buffer, NULL);
+			else
+			{
+				cd_helper(cwd, pwd_buf, envp, i);
+				get_old_pwd(envp, ldbuf);
+			}
 		}
 	}
 	else
@@ -402,9 +502,14 @@ void cd(char *args[], char last_dir_buf[], char *envp[])
 		home_path = get_home_path(envp);
 		_strcpy(home_copy, home_path);
 		_split(home_copy, path_buf);
-		getcwd(last_dir_buf, 1000);
+		getcwd(ldbuf, 1000);
 		if (chdir(path_buf[1]) != 0)
 			perror("hsh");
+		else
+		{
+			cd_helper(cwd, pwd_buf, envp, i);
+			get_old_pwd(envp, ldbuf);
+		}
 	}
 }
 void env(char *envp[])
@@ -420,7 +525,7 @@ void env(char *envp[])
 		fflush(stdout);
 	}
 }
-int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[])
+int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[], char pwd_buf[])
 {
 	if (_strcmp(ar[0], "history") == 0)
 	{
@@ -429,7 +534,7 @@ int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[])
 	}
 	if (_strcmp(ar[0], "cd") == 0)
 	{
-		cd(ar, ld_buf, en);
+		cd(ar, ld_buf, en, pwd_buf);
 		return (1);
 	}
 	if (_strcmp(ar[0], "env") == 0)
@@ -468,7 +573,7 @@ void _semi(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
@@ -476,12 +581,12 @@ void _semi(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 
 		if (args[0][0] == '/')
 		{
-			execute(args, args[0], envp);
+			execute(args, args[0], envp, his, NULL);
 			continue;
 		}
 		check_comment(sbuf[i]);
 		find_path(path_buf, args, dest);
-		execute(args, dest, envp);
+		execute(args, dest, envp, his, NULL);
 	}
 }
 void _and(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
@@ -494,7 +599,7 @@ void _and(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
@@ -502,13 +607,13 @@ void _and(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 
 		if (args[0][0] == '/')
 		{
-			check = execute(args, args[0], envp);
+			check = execute(args, args[0], envp, his, NULL);
 			if (check != 0)
 				break;
 			continue;
 		}
 		find_path(path_buf, args, dest);
-		check = execute(args, dest, envp);
+		check = execute(args, dest, envp, his, NULL);
 		if (check != 0)
 			break;
 	}
@@ -523,20 +628,20 @@ void _or(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
 		_split(path_copy, path_buf);
 		if (args[0][0] == '/')
 		{
-			or = execute(args, args[0], envp);
+			or = execute(args, args[0], envp, his, NULL);
 			if (or == 0)
 				break;
 			continue;
 		}
 		find_path(path_buf, args, dest);
-		or = execute(args, dest, envp);
+		or = execute(args, dest, envp, his, NULL);
 		if (or == 0)
 			break;
 	}
@@ -599,7 +704,7 @@ int check_semiandor(char rb[], char *env[], int h, char hi[100][100], char ldf[]
 }
 void file_input(char *filename, char *envp[])
 {
-	int fd, rd, i;
+	int fd, rd, i, hist  = 0;
 	char rbuffer[100], *semi_buf[1000], dest[1000], *path;
 	char *path_buf[1000], *args[1000], path_copy[1000];
 
@@ -614,46 +719,48 @@ void file_input(char *filename, char *envp[])
 	_split_newline(rbuffer, semi_buf);
 	for (i = 0; semi_buf[i]; i++)
 	{
+		hist++;
 		_split(semi_buf[i], args);
 		path = get_path(envp);
 		_strcpy(path_copy, path);
 		_split(path_copy, path_buf);
 		if (args[0][0] == '/')
 		{
-			execute(args, args[0], envp);
+			execute(args, args[0], envp, hist, NULL);
 			_memset(args, 0, sizeof(args));
 			_memset(dest, 0, 1000);
 			continue;
 		}
 		find_path(path_buf, args, dest);
-		execute(args, dest, envp);
+		execute(args, dest, envp, hist, NULL);
 		_memset(args, 0, sizeof(args));
 		_memset(dest, 0, 1000);
 	}
 	exit(0);
 }
-void pipe_file(char rbuffer[], char *envp[])
+void pipe_file(char rbuffer[], char *envp[], char *argv[])
 {
 	char *path_buf[1000], *args[1000], *path;
 	char *semi_buf[1000], dest[1000], path_copy[1000];
-	int i;
+	int i, hist = 0;
 
 	_split_newline(rbuffer, semi_buf);
 	for (i = 0; semi_buf[i]; i++)
 	{
+		hist++;
 		_split(semi_buf[i], args);
 		path = get_path(envp);
 		_strcpy(path_copy, path);
 		_split(path_copy, path_buf);
 		if (args[0][0] == '/')
 		{
-			execute(args, args[0], envp);
+			execute(args, args[0], envp, hist, argv);
 			_memset(args, 0, sizeof(args));
 			_memset(dest, 0, 1000);
 			continue;
 		}
 		find_path(path_buf, args, dest);
-		execute(args, dest, envp);
+		execute(args, dest, envp, hist, argv);
 		_memset(args, 0, sizeof(args));
 		_memset(dest, 0, 1000);
 	}
@@ -665,39 +772,41 @@ void pipe_file(char rbuffer[], char *envp[])
 int main(int argc, char *argv[], char *envp[])
 {
 	char *args[1000], *path_buf[1000], history[100][100], **test, *path;
-	char rbuffer[1024], dest[1000], last_dir_buf[1000], path_copy[1000];
+	char rbuf[1024], dest[1000], ldbuf[1000], path_copy[1000], pwd_buf[1000];
 	int hist = 1;
 
+	_memset(ldbuf, 0, 1000);
+	_memset(path_buf, 0, sizeof(path_buf));
 	_memset(history, 0, sizeof(history));
 	signal(SIGINT, sigint_handler);
 	if (argc == 2)
 		file_input(argv[1], envp);
 	while (1)
 	{
-	_memset(rbuffer, 0, 1024);
+	_memset(rbuf, 0, 1024);
 	_memset(args, 0, sizeof(args));
 	_memset(dest, 0, 1000);
 	if (isatty(STDIN_FILENO))
 		write(STDOUT_FILENO, "$ ", 2);
-	if (((_read(rbuffer)) == NULL))
+	if (((_read(rbuf)) == NULL))
 		continue;
 	if (isatty(STDIN_FILENO) == 0)
-		pipe_file(rbuffer, envp);
-	_strcpy(history[hist++], rbuffer);
-	check_comment(rbuffer);
-	if ((check_semiandor(rbuffer, envp, hist, history, last_dir_buf) == 1))
+		pipe_file(rbuf, envp, argv);
+	_strcpy(history[hist++], rbuf);
+	check_comment(rbuf);
+	if ((check_semiandor(rbuf, envp, hist, history, ldbuf) == 1))
 		continue;
-	test = _split(rbuffer, args);
+	test = _split(rbuf, args);
 	if (test == NULL)
 		continue;
 	check_exit(args);
-	if ((check_bltin(args, history, hist, envp, last_dir_buf) != 0))
+	if ((check_bltin(args, history, hist, envp, ldbuf, pwd_buf) != 0))
 		continue;
 	path = get_path(envp);
 	_strcpy(path_copy, path);
 	_split(path_copy, path_buf);
 	find_path(path_buf, args, dest);
-	execute(args, dest, envp);
+	execute(args, dest, envp, (hist - 1), NULL);
 	}
 	return (0);
 }
