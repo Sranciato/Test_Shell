@@ -416,21 +416,20 @@ void print_history(char history[][100], int hist)
 	}
 
 }
-char *get_old_pwd(char *envp[], char ldbuf[])
+char *get_old_pwd(char *envp[], char ldbuf[], char pwd[])
 {
         char *path = "OLDPWD", buffer[1000];
         int i = 0;
 
         while (envp[i])
         {
-                if (_strncmp(envp[i], path, 6) == 0)
+		if (_strncmp(envp[i], path, 6) == 0)
 		{
 			_strcpy(buffer, ldbuf);
-			_memset(ldbuf, 0, 1000);
-			_strcpy(ldbuf, "OLDPWD=");
-			_strcat(ldbuf, buffer);
-			envp[i] = ldbuf;
-			printf("%s\n", envp[i]);
+			_memset(pwd, 0, 1000);
+			_strcpy(pwd, "OLDPWD=");
+			_strcat(pwd, buffer);
+			envp[i] = pwd;
 		}
 		i++;
         }
@@ -461,14 +460,14 @@ void cd_helper(char cwd[], char pwd_buf[], char *envp[], int i)
 		i++;
 	}
 }
-void cd(char *args[], char ldbuf[], char *envp[], char pwd_buf[])
+void cd(char *args[], char ldbuf[], char *envp[], char pwd[], char opwd[])
 {
 	char *home_path, home_copy[1000], *path_buf[1000];
 	char buffer[1000], cwd[1000];
 	int i = 0;
 
-	_memset(pwd_buf, 0, 1000);
-	_strcpy(pwd_buf, "PWD=");
+	_memset(pwd, 0, 1000);
+	_strcpy(pwd, "PWD=");
 	if (args[1])
 	{
 		if (_strcmp(args[1], "-") == 0)
@@ -478,8 +477,8 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd_buf[])
 				perror("hsh");
 			else
 			{
-				cd_helper(cwd, pwd_buf, envp, i);
-				get_old_pwd(envp, ldbuf);
+				cd_helper(cwd, pwd, envp, i);
+				get_old_pwd(envp, ldbuf, opwd);
 
 				write(STDOUT_FILENO, ldbuf, _strlen(ldbuf));
 				write(STDOUT_FILENO, "\n", 1);
@@ -492,8 +491,8 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd_buf[])
 				_error(args, buffer, NULL);
 			else
 			{
-				cd_helper(cwd, pwd_buf, envp, i);
-				get_old_pwd(envp, ldbuf);
+				cd_helper(cwd, pwd, envp, i);
+				get_old_pwd(envp, ldbuf, opwd);
 			}
 		}
 	}
@@ -507,8 +506,8 @@ void cd(char *args[], char ldbuf[], char *envp[], char pwd_buf[])
 			perror("hsh");
 		else
 		{
-			cd_helper(cwd, pwd_buf, envp, i);
-			get_old_pwd(envp, ldbuf);
+			cd_helper(cwd, pwd, envp, i);
+			get_old_pwd(envp, ldbuf, opwd);
 		}
 	}
 }
@@ -525,7 +524,7 @@ void env(char *envp[])
 		fflush(stdout);
 	}
 }
-int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[], char pwd_buf[])
+int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[], char pwd[], char opwd[])
 {
 	if (_strcmp(ar[0], "history") == 0)
 	{
@@ -534,7 +533,7 @@ int check_bltin(char *ar[], char his[][100], int h, char *en[], char ld_buf[], c
 	}
 	if (_strcmp(ar[0], "cd") == 0)
 	{
-		cd(ar, ld_buf, en, pwd_buf);
+		cd(ar, ld_buf, en, pwd, opwd);
 		return (1);
 	}
 	if (_strcmp(ar[0], "env") == 0)
@@ -573,7 +572,7 @@ void _semi(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
@@ -599,7 +598,7 @@ void _and(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
@@ -628,7 +627,7 @@ void _or(char *sbuf[], char *envp[], int his, char hist[][100], char ldbuf[])
 		_memset(dest, 0, 1000);
 		_memset(args, 0, sizeof(args));
 		_split(sbuf[i], args);
-		if ((check_bltin(args, hist, his, envp, ldbuf, NULL) != 0))
+		if ((check_bltin(args, hist, his, envp, ldbuf, NULL, NULL) != 0))
 			continue;
 		path = get_path(envp);
 		_strcpy(path_copy, path);
@@ -772,7 +771,7 @@ void pipe_file(char rbuffer[], char *envp[], char *argv[])
 int main(int argc, char *argv[], char *envp[])
 {
 	char *args[1000], *path_buf[1000], history[100][100], **test, *path;
-	char rbuf[1024], dest[1000], ldbuf[1000], path_copy[1000], pwd_buf[1000];
+	char rbuf[1024], dest[1000], ldbuf[1000], path_copy[1000], pwdb[1000], opwdb[1000];
 	int hist = 1;
 
 	_memset(ldbuf, 0, 1000);
@@ -800,7 +799,7 @@ int main(int argc, char *argv[], char *envp[])
 	if (test == NULL)
 		continue;
 	check_exit(args);
-	if ((check_bltin(args, history, hist, envp, ldbuf, pwd_buf) != 0))
+	if ((check_bltin(args, history, hist, envp, ldbuf, pwdb, opwdb) != 0))
 		continue;
 	path = get_path(envp);
 	_strcpy(path_copy, path);
