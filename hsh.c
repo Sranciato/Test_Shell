@@ -328,13 +328,29 @@ char **_split_newline(char *s, char *buf[])
 
 	return (buf);
 }
+void exit_error(char *args[], char buffer[])
+{
+	write(STDOUT_FILENO, "hsh: ", 5);
+	write(STDOUT_FILENO, buffer, 4);
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, args[0], _strlen(args[0]));
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, "illegal number", 15);
+	write(STDOUT_FILENO, ": ", 2);
+	write(STDOUT_FILENO, args[1], sizeof(args[0]));
+	write(STDOUT_FILENO, "\n", 1);
+}
 /**
  * check for exit call
  */
-void check_exit(char *args[])
+void check_exit(char *args[], int hist)
 {
 	char *ex = "exit";
 	int exit_code, check = 0;
+	char buffer[1000];
+
+	_memset(buffer, 0, 1000);
+	_itoa(hist, buffer);
 
 	if ((_strncmp(args[0], ex, 4)) == 0)
 		check = 1;
@@ -344,7 +360,13 @@ void check_exit(char *args[])
 		if (args[1])
 		{
 			exit_code = _atoi(args[1]);
-			exit(exit_code);
+			if (exit_code >= 0 && exit_code <= 2147483647)
+				exit(exit_code);
+			else
+			{
+				exit_error(args, buffer);
+				exit(2);
+			}
 		}
 		else
 			exit(EXIT_SUCCESS);
@@ -827,7 +849,7 @@ int main(int argc, char *argv[], char *envp[])
 	test = _split(rbuf, args);
 	if (test == NULL)
 		continue;
-	check_exit(args);
+	check_exit(args, hist);
 	if ((check_bltin(args, history, hist, envp, ldbuf, pwdb, opwdb) != 0))
 		continue;
 	path = get_path(envp);
