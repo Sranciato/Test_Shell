@@ -322,49 +322,51 @@ char **_split_newline(char *s, char *buf[])
 
 	return (buf);
 }
-void exit_error(char *args[], char buffer[])
+void exit_error(buf_struct *a, char buffer[])
 {
-	write(STDOUT_FILENO, "hsh: ", 5);
-	write(STDOUT_FILENO, buffer, 4);
-	write(STDOUT_FILENO, ": ", 2);
-	write(STDOUT_FILENO, args[0], _strlen(args[0]));
-	write(STDOUT_FILENO, ": ", 2);
-	write(STDOUT_FILENO, "illegal number", 15);
-	write(STDOUT_FILENO, ": ", 2);
-	write(STDOUT_FILENO, args[1], _strlen(args[0]));
-	write(STDOUT_FILENO, "\n", 1);
+        write(STDOUT_FILENO, a->argv[0], _strlen(a->argv[0]));
+        write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, buffer, 4);
+        write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, a->args[0], _strlen(a->args[0]));
+        write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, "Illegal number", 15);
+        write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, a->args[1], _strlen(a->args[1]));
+        write(STDOUT_FILENO, "\n", 1);
 }
 /**
  * check for exit call
  */
-void check_exit(char *args[], int hist)
+int check_exit(buf_struct *a)
 {
-	char *ex = "exit";
-	int exit_code, check = 0;
-	char buffer[1000];
+        char *ex = "exit";
+        int exit_code, check = 0;
+        char buffer[1000];
 
-	_memset(buffer, 0, 1000);
-	_itoa(hist, buffer);
+        _memset(buffer, 0, 1000);
+        _itoa(a->hist, buffer);
 
-	if ((_strncmp(args[0], ex, 4)) == 0)
-		check = 1;
+        if ((_strncmp(a->args[0], ex, 4)) == 0)
+                check = 1;
 
-	if (check == 1)
-	{
-		if (args[1])
-		{
-			exit_code = _atoi(args[1]);
-			if (exit_code >= 0 && exit_code <= 2147483647)
-				exit(exit_code);
-			else
-			{
-				exit_error(args, buffer);
-				exit(2);
-			}
-		}
-		else
-			exit(EXIT_SUCCESS);
-	}
+        if (check == 1)
+        {
+                if (a->args[1])
+                {
+                        exit_code = _atoi(a->args[1]);
+                        if (exit_code >= 0 && exit_code <= 2147483647)
+                                exit(exit_code);
+                        else
+                        {
+                                exit_error(a, buffer);
+                                return(1);
+                        }
+                }
+                else
+                        exit(EXIT_SUCCESS);
+        }
+        return (0);
 }
 /**
  * read input from user
@@ -543,10 +545,7 @@ void cd(buf_struct *a)
 		{
 			_strcpy(temp, a->ldbuf);
 			if (chdir(a->args[1]) != 0)
-			{
 				error_cd(a, buffer);
-				_exit(errno);
-			}
 			else
 			{
 				getcwd(a->ldbuf, 1000);
@@ -825,6 +824,7 @@ buf_struct *make_struct_a(char *envp[], char *argv[])
 void main_loop(buf_struct *a)
 {
 	char **test, *path;
+	int x;
 
 	_memset(a->ldbuf, 0, 1000);
 	getcwd(a->ldbuf, 1000);
@@ -846,7 +846,8 @@ void main_loop(buf_struct *a)
 		test = _split(a->rbuf, a->args);
 		if (test == NULL)
 			continue;
-		check_exit(a->args, a->hist);
+		if ((check_exit(a) == 1))
+			continue;
 		if ((check_bltin(a) != 0))
 			continue;
 		path = get_path(a->envp);
@@ -870,4 +871,3 @@ int main(int argc, char *argv[], char *envp[])
 
 	return (0);
 }
-
