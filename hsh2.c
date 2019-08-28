@@ -103,28 +103,32 @@ int _itoa(int n, char buf[])
 	}
 	return (len);
 }
-void _error(char **args, char buffer[], char *argv[])
+void _error(buf_struct *a, char buffer[])
 {
-	if (argv == NULL)
-		write(STDOUT_FILENO, "hsh: ", 5);
-	else
-	{
-		write(STDOUT_FILENO, argv[0], _strlen(argv[0]));
-		write(STDOUT_FILENO, ": ", 2);
-	}
+	write(STDOUT_FILENO, a->argv[0], _strlen(a->argv[0]));
+	write(STDOUT_FILENO, ": ", 2);
 
 	write(STDOUT_FILENO, buffer, 4);
 	write(STDOUT_FILENO, ": ", 2);
-	write(STDOUT_FILENO, args[0], sizeof(args[0]));
+	write(STDOUT_FILENO, a->args[0], _strlen(a->args[0]));
 	write(STDOUT_FILENO, ": ", 2);
 	write(STDOUT_FILENO, "not found", 9);
 	write(STDOUT_FILENO, "\n", 1);
-
+}
+void error_cd(buf_struct *a, char buffer[])
+{
+	write(STDOUT_FILENO, a->argv[0], _strlen(a->argv[0]));
+	write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, buffer, 4);
+        write(STDOUT_FILENO, ": ", 2);
+        write(STDOUT_FILENO, "cd: can't cd to ", 16);
+        write(STDOUT_FILENO, a->args[1], _strlen(a->args[1]));
+        write(STDOUT_FILENO, "\n", 1);
 }
 /**
  * attempt to execute
  */
-int execute(char **args, char *path, char *envp[], int hist, char *argv[])
+int execute(buf_struct *a, char *path)
 {
 	pid_t pid;
 	int status = 0;
@@ -132,21 +136,21 @@ int execute(char **args, char *path, char *envp[], int hist, char *argv[])
 
 	pid = fork();
 	_memset(buffer, 0, 1000);
-	_itoa(hist, buffer);
+	_itoa(a->hist, buffer);
 
 	if (pid == 0)
 	{
-		if (args[0][0] == '/')
+		if (a->args[0][0] == '/')
 		{
-			if (execve(args[0], args, envp) == -1)
+			if (execve(a->args[0], a->args, a->envp) == -1)
 			{
-				_error(args, buffer, argv);
+				_error(a, buffer);
 				_exit(errno);
 			}
 		}
-		if (execve(path, args, envp) == -1)
+		if (execve(path, a->args, a->envp) == -1)
 		{
-			_error(args, buffer, argv);
+			_error(a, buffer);
 			_exit(errno);
 		}
 	}
@@ -327,7 +331,7 @@ void exit_error(char *args[], char buffer[])
 	write(STDOUT_FILENO, ": ", 2);
 	write(STDOUT_FILENO, "illegal number", 15);
 	write(STDOUT_FILENO, ": ", 2);
-	write(STDOUT_FILENO, args[1], sizeof(args[0]));
+	write(STDOUT_FILENO, args[1], _strlen(args[0]));
 	write(STDOUT_FILENO, "\n", 1);
 }
 /**
@@ -539,7 +543,10 @@ void cd(buf_struct *a)
 		{
 			_strcpy(temp, a->ldbuf);
 			if (chdir(a->args[1]) != 0)
-				_error(a->args, buffer, NULL);
+			{
+				error_cd(a, buffer);
+				_exit(errno);
+			}
 			else
 			{
 				getcwd(a->ldbuf, 1000);
@@ -603,84 +610,84 @@ char *get_path(char *envp[])
 }
 void _semi(char *sbuf[], buf_struct *a)
 {
-	char *args[1000], *path_buf[1000], *path, path_copy[1000];
+	char *path;
 	char dest[1000];
 	int i;
 
 	for (i = 0; sbuf[i]; i++)
 	{
 		_memset(dest, 0, 1000);
-		_memset(args, 0, sizeof(args));
-		_split(sbuf[i], args);
+		_memset(a->args, 0, sizeof(a->args));
+		_split(sbuf[i], a->args);
 		if ((check_bltin(a) != 0))
 			continue;
 		path = get_path(a->envp);
-		_strcpy(path_copy, path);
-		_split(path_copy, path_buf);
+		_strcpy(a->path_copy, path);
+		_split(a->path_copy, a->path_buf);
 
-		if (args[0][0] == '/')
+		if (a->args[0][0] == '/')
 		{
-			execute(args, args[0], a->envp, a->hist, NULL);
+			execute(a, NULL);
 			continue;
 		}
 		check_comment(sbuf[i]);
-		find_path(path_buf, args, dest);
-		execute(args, dest, a->envp, a->hist, NULL);
+		find_path(a->path_buf, a->args, dest);
+		execute(a, dest);
 	}
 }
 void _and(char *sbuf[], buf_struct *a)
 {
-	char *args[1000], *path_buf[1000], dest[1000], path_copy[1000], *path;
+	char dest[1000], *path;
 	int i, check = 0;
 
 	for (i = 0; sbuf[i]; i++)
 	{
 		_memset(dest, 0, 1000);
-		_memset(args, 0, sizeof(args));
-		_split(sbuf[i], args);
+		_memset(a->args, 0, sizeof(a->args));
+		_split(sbuf[i], a->args);
 		if ((check_bltin(a) != 0))
 			continue;
 		path = get_path(a->envp);
-		_strcpy(path_copy, path);
-		_split(path_copy, path_buf);
+		_strcpy(a->path_copy, path);
+		_split(a->path_copy, a->path_buf);
 
-		if (args[0][0] == '/')
+		if (a->args[0][0] == '/')
 		{
-			check = execute(args, args[0], a->envp, a->hist, NULL);
+			check = execute(a, a->args[0]);
 			if (check != 0)
 				break;
 			continue;
 		}
-		find_path(path_buf, args, dest);
-		check = execute(args, dest, a->envp, a->hist, NULL);
+		find_path(a->path_buf, a->args, dest);
+		check = execute(a, dest);
 		if (check != 0)
 			break;
 	}
 }
 void _or(char *sbuf[], buf_struct *a)
 {
-	char *args[1000], *path_buf[1000], dest[1000], path_copy[1000], *path;
+	char dest[1000], *path;
 	int i, or;
 
 	for (i = 0; sbuf[i]; i++)
 	{
 		_memset(dest, 0, 1000);
-		_memset(args, 0, sizeof(args));
-		_split(sbuf[i], args);
+		_memset(a->args, 0, sizeof(a->args));
+		_split(sbuf[i], a->args);
 		if ((check_bltin(a) != 0))
 			continue;
 		path = get_path(a->envp);
-		_strcpy(path_copy, path);
-		_split(path_copy, path_buf);
-		if (args[0][0] == '/')
+		_strcpy(a->path_copy, path);
+		_split(a->path_copy, a->path_buf);
+		if (a->args[0][0] == '/')
 		{
-			or = execute(args, args[0], a->envp, a->hist, NULL);
+			or = execute(a, a->args[0]);
 			if (or == 0)
 				break;
 			continue;
 		}
-		find_path(path_buf, args, dest);
-		or = execute(args, dest, a->envp, a->hist, NULL);
+		find_path(a->path_buf, a->args, dest);
+		or = execute(a, dest);
 		if (or == 0)
 			break;
 	}
@@ -741,71 +748,68 @@ int check_semiandor(buf_struct *a)
 	}
 	return (0);
 }
-void file_input(char *filename, char *envp[])
+void pipe_file(buf_struct *a)
 {
-	int fd, rd, i, hist  = 0;
-	char rbuffer[100], *semi_buf[1000], dest[1000], *path;
-	char *path_buf[1000], *args[1000], path_copy[1000];
+        char *path_buf[1000], *semi_buf[1000], *path;
+        int i, ext;
 
-	fd = open(filename, O_RDONLY);
-	if (fd == -1)
-		perror("hsh");
-
-	rd = read(fd, rbuffer, 1024);
-	if (rd == -1)
-		perror("hsh");
-	close(rd);
-	_split_newline(rbuffer, semi_buf);
-	for (i = 0; semi_buf[i]; i++)
-	{
-		hist++;
-		_split(semi_buf[i], args);
-		path = get_path(envp);
-		_strcpy(path_copy, path);
-		_split(path_copy, path_buf);
-		if (args[0][0] == '/')
-		{
-			execute(args, args[0], envp, hist, NULL);
-			_memset(args, 0, sizeof(args));
-			_memset(dest, 0, 1000);
-			continue;
-		}
-		find_path(path_buf, args, dest);
-		execute(args, dest, envp, hist, NULL);
-		_memset(args, 0, sizeof(args));
-		_memset(dest, 0, 1000);
-	}
-	exit(0);
+        _split_newline(a->rbuf, semi_buf);
+        for (i = 0; semi_buf[i]; i++)
+        {
+		a->hist++;
+                _split(semi_buf[i], a->args);
+                path = get_path(a->envp);
+                _strcpy(a->path_copy, path);
+                _split(a->path_copy, path_buf);
+                if (a->args[0][0] == '/')
+                {
+                        execute(a, a->args[0]);
+                        _memset(a->args, 0, sizeof(a->args));
+                        _memset(a->dest, 0, 1000);
+                        continue;
+                }
+                find_path(path_buf, a->args, a->dest);
+                ext = execute(a, a->dest);
+                _memset(a->args, 0, sizeof(a->args));
+                _memset(a->dest, 0, 1000);
+        }
+        exit(ext);
 }
-void pipe_file(char rbuffer[], char *envp[], char *argv[])
+void file_input(buf_struct *a)
 {
-	char *path_buf[1000], *args[1000], *path;
-	char *semi_buf[1000], dest[1000], path_copy[1000];
-	int i, hist = 0, ext;
+        int fd, rd, i, hist  = 0;
+        char *semi_buf[1000], *path, *path_buf[1000];
 
-	_split_newline(rbuffer, semi_buf);
-	for (i = 0; semi_buf[i]; i++)
-	{
-		hist++;
-		_split(semi_buf[i], args);
-		path = get_path(envp);
-		_strcpy(path_copy, path);
-		_split(path_copy, path_buf);
-		if (args[0][0] == '/')
-		{
-			execute(args, args[0], envp, hist, argv);
-			_memset(args, 0, sizeof(args));
-			_memset(dest, 0, 1000);
-			continue;
-		}
-		find_path(path_buf, args, dest);
-		ext = execute(args, dest, envp, hist, argv);
-		_memset(args, 0, sizeof(args));
-		_memset(dest, 0, 1000);
-	}
-	exit(ext);
+        fd = open(a->argv[0], O_RDONLY);
+        if (fd == -1)
+                perror("hsh");
+
+        rd = read(fd, a->rbuf, 1024);
+        if (rd == -1)
+                perror("hsh");
+        close(rd);
+        _split_newline(a->rbuf, semi_buf);
+        for (i = 0; semi_buf[i]; i++)
+        {
+                hist++;
+                _split(semi_buf[i], a->args);
+                path = get_path(a->envp);
+                _strcpy(a->path_copy, path);
+                _split(a->path_copy, path_buf);
+                if (a->args[0][0] == '/')
+                {
+                        execute(a, a->args[0]);
+                        _memset(a->args, 0, sizeof(a->args));
+                        _memset(a->dest, 0, 1000);
+                        continue;
+                }
+                find_path(path_buf, a->args, a->dest);
+                execute(a, a->dest);
+                _memset(a->args, 0, sizeof(a->args));
+                _memset(a->dest, 0, 1000);
+        }
+        exit(0);
 }
-
 buf_struct *make_struct_a(char *envp[], char *argv[])
 {
 	static buf_struct a;
@@ -834,7 +838,7 @@ void main_loop(buf_struct *a)
 		if (((_read(a->rbuf)) == NULL))
 			continue;
 		if (isatty(STDIN_FILENO) == 0)
-			pipe_file(a->rbuf, a->envp, a->argv);
+			pipe_file(a);
 		_strcpy(a->history[a->hist++], a->rbuf);
 		check_comment(a->rbuf);
 		if ((check_semiandor(a) == 1))
@@ -849,7 +853,7 @@ void main_loop(buf_struct *a)
 		_strcpy(a->path_copy, path);
 		_split(a->path_copy, a->path_buf);
 		find_path(a->path_buf, a->args, a->dest);
-		execute(a->args, a->dest, a->envp, (a->hist - 1), NULL);
+		execute(a, a->dest);
 	}
 }
 
@@ -861,7 +865,7 @@ int main(int argc, char *argv[], char *envp[])
 
 	signal(SIGINT, sigint_handler);
 	if (argc == 2)
-		file_input(argv[1], envp);
+		file_input(a);
 	main_loop(a);
 
 	return (0);
